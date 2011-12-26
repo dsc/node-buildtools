@@ -1,0 +1,211 @@
+### Utilities for Build Files
+
+exports.fs   = fs   = require 'fs'
+exports.path = path = require 'path'
+exports.{dirname, basename, extname, resolve, relative, normalize, join:joinPath, existsSync:exists} = path
+
+
+
+/* * * *  plumbing  * * * */
+
+_     = require 'underscore'
+_.mixin require 'underscore.string'
+exports.underscore = exports._ = _
+exports.Seq        = require 'seq'
+
+
+
+/* * * *  logging helpers  * * * */
+
+print = exports.print = (...args) -> process.stdout.write args.join(' ')
+say   = exports.say   = (...args) -> process.stdout.write args.join(' ') + '\n'
+
+exports.eyes      = eyes = require 'eyes'
+exports.inspector = eyes.inspector()
+exports.inspect   = (object, showHidden=false, depth=1, colors=true) ->
+    eyes.inspect ...
+
+
+
+/* * * *  shell/process helpers  * * * */
+
+exports.{spawn, exec} = {spawn, exec} = require 'child_process'
+
+exports.colors    = require 'colors'
+exports.Table     = require 'cli-table'
+
+sh = exports.sh = (cmd, cb) ->
+    say cmd
+    if cb then exec cmd, cb
+    else
+        err, stdout, stderr <- exec cmd
+        say that if stderr
+        if err
+            say "#err".red
+            process.exit 1
+        say that if stdout
+
+run = exports.run = (cmd, args=[], options={}) ->
+    opts = { +verbose, +errors, +die } <<< options
+    if opts.verbose  then console.log cmd, args
+    args = args.split() if typeof args is 'string'
+    proc = spawn cmd, args
+    if opts.verbose  then proc.stdout.on 'data', -> say it
+    if opts.errors   then proc.stderr.on 'data', -> say it.red
+    if opts.die      then proc       .on 'exit', -> process.exit it if it
+    proc
+
+
+
+/* * * *  path/file helpers  * * * */
+
+exports.glob      = require 'glob'
+exports.commondir = require 'commondir'
+
+read  = exports.read  = exports.slurp = -> '' + fs.readFileSync ...
+write = exports.write = exports.spit  = -> fs.writeFileSync ...
+dir   = exports.dir   = fs.readdirSync
+
+sourceFiles = exports.sourceFiles = (srcPath, pattern=/\.co$/) ->
+    ( path.join srcPath, f if pattern.test f and isFileSync f for f of dir srcPath )
+
+expand = exports.expand = (...parts) ->
+    p = path.normalize path.join ...parts
+    if p.indexOf('~') is 0
+        home = process.env.HOME or process.env.HOMEPATH
+        p = path.join home, p.slice(1)
+    path.resolve p
+
+
+# Tests whether a path is an extant directory
+isDirectory = exports.isDirectory = (p, cb) ->
+    p = expand(p)
+    fs.stat p, (err, stats) ->
+        return cb err if err and err.code is not 'ENOENT'
+        cb null, stats and stats.isDirectory()
+
+# Tests whether a path is an extant file
+isFile = exports.isFile = (p, cb) ->
+    p = expand(p)
+    fs.stat p, (err, stats) ->
+        return cb err if err and err.code is not 'ENOENT'
+        cb null, stats and stats.isFile()
+
+# Tests whether a path is an extant directory
+isDirectorySync = exports.isDirectorySync = (p) ->
+    p = expand(p)
+    try
+        stats = fs.statSync p
+    catch err
+        throw err if err.code is not 'ENOENT'
+    return stats and stats.isDirectory()
+
+# Tests whether a path is an extant file
+isFileSync = exports.isFileSync = (p) ->
+    p = expand(p)
+    try
+        stats = fs.statSync p
+    catch err
+        throw err if err.code is not 'ENOENT'
+    return stats and stats.isFile()
+
+
+# Recursively make missing directories, eating EEXIST errors.
+mkdirpAsync = exports.mkdirpAsync = function mkdirpAsync (p, mode=8r0755, cb)
+    [cb, mode] = [mode, 8r0755] if typeof mode is 'function'
+    cb or= (->)
+    p = expand(p)
+    
+    exists <- path.exists p
+    return cb null if exists
+    
+    ps = p.split '/'
+    _p = ps.slice(0, -1).join '/'
+    
+    err <- mkdirpAsync _p, mode
+    return cb null if err?.code is 'EEXIST'
+    return cb err  if err
+    
+    err <- fs.mkdir _p
+    return cb null if err?.code is 'EEXIST'
+    return cb err  if err
+
+
+# Recursively make missing directories, eating EEXIST errors.
+mkdirp = mkdirpSync = exports.mkdirp = exports.mkdirpSync = (p, mode=8r0755) ->
+    made_any = false
+    _p = ''
+    for part of expand(p).slice(1).split('/')
+        _p += '/' + part
+        continue if path.existsSync _p
+        made_any = true
+        fs.mkdirSync _p, mode
+    made_any
+
+
+/* * * *  development helpers  * * * */
+
+coco = exports.coco = (args, options) ->
+    run 'coco', args, options
+
+
+getVersion = exports.getVersion = (cb) ->
+    err, stdout <- exec 'git rev-parse --short HEAD'
+    throw err if err
+    VERSION := stdout.trim()
+    cb VERSION
+
+
+minify = exports.minify = ->
+    {parser, uglify} = require 'uglify-js'
+    ast = parser.parse it
+    ast = uglify.ast_mangle  ast
+    ast = uglify.ast_squeeze ast
+    uglify.gen_code ast
+
+cssmin = exports.{cssmin} = require 'cssmin'
+
+
+bundle = exports.bundle = (outpath, sources, options={}) ->
+    opts = {paths, ext} = { paths:'', -file_bounds, minify:true, minifier:null, ext:'', srccolor:'white' } <<< options
+    sources .= trim().split(/\s+/) if typeof sources is 'string'
+    paths   .= trim().split(/\s+/) if typeof paths   is 'string'
+    mkdirp dirname outpath
+    
+    # eyes.inspect { outpath, sources, paths, opts }
+    
+    say 'Bundling up', outpath.magenta.bold+'...'
+    code = ''
+    files = ( for name of sources
+        name += ext unless _.endsWith name, ext
+        file = _ paths.map (-> joinPath it, name) .find exists
+        unless file
+            say 'Cannot locate', name.red.bold, 'in paths', _.pluck(paths).join(' '),+'!'
+            throw new Error("Cannot locate file #name!")
+        try
+            code += "/** BEGIN:  #file **/\n\n" if opts.file_bounds
+            code += read(file) + '\n'
+            code += "\n/** END:  #file **/\n\n" if opts.file_bounds
+        catch err
+            say 'Error reading', file.red.bold+'!'
+            throw err
+        file
+    )
+    
+    code = opts.minifier code if opts.minify and typeof opts.minifier is 'function'
+    write outpath, code, 'utf8'
+    say '...wrote', outpath.magenta.bold, 'containing files:'
+    say files.map(-> '\t' + it[opts.srccolor].bold).join('\n')
+
+
+bundle_js = exports.bundle_js = (outpath, sources, options={}) ->
+    bundle outpath, sources, { ext:'.js', minifier:minify, srccolor:'cyan' } <<< options
+
+
+bundle_css = exports.bundle_css = (outpath, sources, options={}) ->
+    bundle outpath, sources, { ext:'.css', minifier:cssmin, srccolor:'yellow' } <<< options
+
+
+
+
+global import exports
