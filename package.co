@@ -1,6 +1,6 @@
 name                    : 'buildtools'
 version                 : '0.1.0'
-description             : 'Various useful utilities for use in Jake/Cake/Coke build files.'
+description             : 'Utilities for use in Jake/Cake/Coke build files.'
 homepage                : 'http://dsc.github.com/node-buildtools/'
 keywords                : <[ build buildtools jake coke cake tools util server ]>
 author                  : 'David Schoonover <dsc@less.ly> (http://less.ly)'
@@ -20,8 +20,8 @@ dependencies            :
     'seq'               : '>= 0.3.5'
     'uglify-js'         : '>= 1.2.2'
     'cssmin'            : '>= 0.3.1'
-repository              : type:'git', url:'git://github.com/dsc/buildtools.git'
-bugs                    : url:'http://github.com/dsc/buildtools/issues'
+repository              : type:'git', url:'git://github.com/dsc/node-buildtools.git'
+bugs                    : url:'http://github.com/dsc/node-buildtools/issues'
 
 engine                  : node:'>=0.4.0'
 license                 : 'MIT'

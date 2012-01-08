@@ -1,7 +1,7 @@
 {
   "name": "buildtools",
   "version": "0.1.0",
-  "description": "Various useful utilities for use in Jake/Cake/Coke build files.",
+  "description": "Utilities for use in Jake/Cake/Coke build files.",
   "homepage": "http://dsc.github.com/node-buildtools/",
   "keywords": [
     "build",
@@ -30,10 +30,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/dsc/buildtools.git"
+    "url": "git://github.com/dsc/node-buildtools.git"
   },
   "bugs": {
-    "url": "http://github.com/dsc/buildtools/issues"
+    "url": "http://github.com/dsc/node-buildtools/issues"
   },
   "engine": {
     "node": ">=0.4.0"
