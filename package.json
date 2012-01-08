@@ -16,7 +16,7 @@
   "author": "David Schoonover <dsc@less.ly> (http://less.ly)",
   "main": "./index.js",
   "dependencies": {
-    "coco": ">= 0.6.7",
+    "coco": ">= 0.7.0",
     "eyes": ">= 0.1.7",
     "colors": ">= 0.6.0",
     "glob": ">= 2.1.0",

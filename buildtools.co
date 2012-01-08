@@ -152,8 +152,7 @@ coco = exports.coco = (args, options) ->
 getVersion = exports.getVersion = (cb) ->
     err, stdout <- exec 'git rev-parse --short HEAD'
     throw err if err
-    VERSION := stdout.trim()
-    cb VERSION
+    cb stdout.trim()
 
 
 minify = exports.minify = ->
