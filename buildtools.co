@@ -6,16 +6,17 @@ exports.{dirname, basename, extname, resolve, relative, normalize, join:joinPath
 
 
 
-/* * * *  plumbing  * * * */
+/* * * *  plumbing  * * * {{{ */
 
 _     = require 'underscore'
 _.mixin require 'underscore.string'
 exports.underscore = exports._ = _
-exports.Seq        = require 'seq'
+exports.Seq = require 'seq'
 
 
 
-/* * * *  logging helpers  * * * */
+/* }}} */
+/* * * *  logging helpers  * * * {{{ */
 
 print = exports.print = (...args) -> process.stdout.write args.join(' ')
 say   = exports.say   = (...args) -> process.stdout.write args.join(' ') + '\n'
@@ -27,7 +28,8 @@ exports.inspect   = (object, showHidden=false, depth=1, colors=true) ->
 
 
 
-/* * * *  shell/process helpers  * * * */
+/* }}} */
+/* * * *  shell/process helpers  * * * {{{ */
 
 exports.{spawn, exec} = {spawn, exec} = require 'child_process'
 
@@ -41,33 +43,56 @@ sh = exports.sh = (cmd, cb) ->
         err, stdout, stderr <- exec cmd
         say that if stderr
         if err
-            say "#err".red
+            say String(err).red
             process.exit 1
         say that if stdout
 
 run = exports.run = (cmd, args=[], options={}) ->
     opts = { +verbose, +errors, +die } <<< options
     if opts.verbose  then console.log cmd, args
-    args = args.split() if typeof args is 'string'
+    args = args.split(/\s+/g) if typeof args is 'string'
     proc = spawn cmd, args
-    if opts.verbose  then proc.stdout.on 'data', -> say it
-    if opts.errors   then proc.stderr.on 'data', -> say it.red
+    if opts.verbose  then proc.stdout.on 'data', -> say String(it)
+    if opts.errors   then proc.stderr.on 'data', -> say String(it)
     if opts.die      then proc       .on 'exit', -> process.exit it if it
     proc
 
 
 
-/* * * *  path/file helpers  * * * */
+/* * * *  path/file helpers  * * * {{{ */
 
 exports.glob      = require 'glob'
 exports.commondir = require 'commondir'
 
-read  = exports.read  = exports.slurp = -> '' + fs.readFileSync ...
-write = exports.write = exports.spit  = -> fs.writeFileSync ...
-dir   = exports.dir   = fs.readdirSync
+ls     = exports.ls     = \
+dir    = exports.dir    = fs.readdirSync
+read   = exports.read   = exports.slurp = -> '' + fs.readFileSync ...
+write  = exports.write  = exports.spit  = -> fs.writeFileSync ...
+
+rm     = exports.rm     = \
+remove = exports.remove = \
+removeSync = exports.removeSync = (...paths) ->
+    for f of paths
+        if isDirectory f
+            fs.rmdirSync f
+        else
+            fs.unlinkSync f
+    paths
+
+removeAsync = exports.removeAsync = (...paths, cb) ->
+    try
+        for f of paths
+            if isDirectory f
+                fs.rmdirSync f
+            else
+                fs.unlinkSync f
+    catch err
+        return cb err
+    cb null
+
 
 sourceFiles = exports.sourceFiles = (srcPath, pattern=/\.co$/) ->
-    ( path.join srcPath, f if pattern.test f and isFileSync f for f of dir srcPath )
+    ( path.join srcPath, f if pattern.test f and isFileSync f for f of ls srcPath )
 
 expand = exports.expand = (...parts) ->
     p = path.normalize path.join ...parts
@@ -78,36 +103,38 @@ expand = exports.expand = (...parts) ->
 
 
 # Tests whether a path is an extant directory
-isDirectory = exports.isDirectory = (p, cb) ->
+isDirectoryAsync = exports.isDirectoryAsync = (p, cb) ->
     p = expand(p)
     fs.stat p, (err, stats) ->
         return cb err if err and err.code is not 'ENOENT'
         cb null, stats and stats.isDirectory()
 
-# Tests whether a path is an extant file
-isFile = exports.isFile = (p, cb) ->
-    p = expand(p)
-    fs.stat p, (err, stats) ->
-        return cb err if err and err.code is not 'ENOENT'
-        cb null, stats and stats.isFile()
-
 # Tests whether a path is an extant directory
+isDirectory     = exports.isDirectory     = \
 isDirectorySync = exports.isDirectorySync = (p) ->
     p = expand(p)
     try
         stats = fs.statSync p
     catch err
         throw err if err.code is not 'ENOENT'
-    return stats and stats.isDirectory()
+    return !!( stats and stats.isDirectory() )
 
 # Tests whether a path is an extant file
+isFileAsync = exports.isFileAsync = (p, cb) ->
+    p = expand(p)
+    fs.stat p, (err, stats) ->
+        return cb err if err and err.code is not 'ENOENT'
+        cb null, stats and stats.isFile()
+
+# Tests whether a path is an extant file
+isFile     = exports.isFile     = \
 isFileSync = exports.isFileSync = (p) ->
     p = expand(p)
     try
         stats = fs.statSync p
     catch err
         throw err if err.code is not 'ENOENT'
-    return stats and stats.isFile()
+    return !!( stats and stats.isFile() )
 
 
 # Recursively make missing directories, eating EEXIST errors.
@@ -132,7 +159,8 @@ mkdirpAsync = exports.mkdirpAsync = function mkdirpAsync (p, mode=8r0755, cb)
 
 
 # Recursively make missing directories, eating EEXIST errors.
-mkdirp = mkdirpSync = exports.mkdirp = exports.mkdirpSync = (p, mode=8r0755) ->
+mkdirp = exports.mkdirp = \
+mkdirpSync = exports.mkdirpSync = (p, mode=8r0755) ->
     made_any = false
     _p = ''
     for part of expand(p).slice(1).split('/')
@@ -143,7 +171,9 @@ mkdirp = mkdirpSync = exports.mkdirp = exports.mkdirpSync = (p, mode=8r0755) ->
     made_any
 
 
-/* * * *  development helpers  * * * */
+
+/* }}} */
+/* * * *  development helpers  * * * {{{ */
 
 coco = exports.coco = (args, options) ->
     run 'coco', args, options
@@ -206,5 +236,6 @@ bundle_css = exports.bundle_css = (outpath, sources, options={}) ->
 
 
 
+/* }}} */
 
 global import exports
