@@ -71,17 +71,26 @@ write  = exports.write  = exports.spit  = -> fs.writeFileSync ...
 
 rm     = exports.rm     = \
 remove = exports.remove = \
-removeSync = exports.removeSync = (...paths) ->
+removeSync = exports.removeSync = (paths, ignoreErrors=false) ->
+    paths = [paths] if typeof paths is 'string'
     for f of paths
+        if ignoreErrors and not exists f
+            continue
         if isDirectory f
             fs.rmdirSync f
         else
             fs.unlinkSync f
     paths
 
-removeAsync = exports.removeAsync = (...paths, cb) ->
+removeAsync = exports.removeAsync = (paths, ignoreErrors, cb) ->
+    paths = [paths] if typeof paths is 'string'
+    if typeof ignoreErrors is 'function'
+        [ignoreErrors, cb] = [false, ignoreErrors]
+    
     try
         for f of paths
+            if ignoreErrors and not exists f
+                continue
             if isDirectory f
                 fs.rmdirSync f
             else
