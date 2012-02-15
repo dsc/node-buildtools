@@ -1,11 +1,12 @@
-var fs, path, print, say, eyes, spawn, exec, sh, run, dir, ls, read, write, removeSync, remove, rm, removeAsync, sourceFiles, expand, isDirectoryAsync, isDirectorySync, isDirectory, isFileAsync, isFileSync, isFile, mkdirpAsync, mkdirpSync, mkdirp, coco, getVersion, minify, cssmin, bundle, bundle_js, bundle_css, _, _ref, __slice = [].slice;
+var fs, path, print, out, say, eyes, spawn, exec, sh, run, dir, ls, read, write, removeSync, remove, rm, removeAsync, sourceFiles, expand, isDirectoryAsync, isDirectorySync, isDirectory, isFileAsync, isFileSync, isFile, mkdirpAsync, mkdirpSync, mkdirp, coco, minify, cssmin, bundle, bundle_js, bundle_css, getVersion, writeVersionFile, mainbase, _, _ref, __slice = [].slice;
 exports.fs = fs = require('fs');
 exports.path = path = require('path');
 exports.dirname = path.dirname, exports.basename = path.basename, exports.extname = path.extname, exports.resolve = path.resolve, exports.relative = path.relative, exports.normalize = path.normalize, exports.joinPath = path.join, exports.exists = path.existsSync;
 /* * * *  plumbing  * * * {{{ */
 _ = require('underscore');
-_.mixin(require('underscore.string'));
-exports.underscore = exports._ = _;
+_.str = require('underscore.string');
+_.mixin(_.str.exports());
+exports.underscore = exports.u = exports._ = exports.__ = _;
 exports.Seq = require('seq');
 /* }}} */
 /* * * *  logging helpers  * * * {{{ */
@@ -14,7 +15,7 @@ print = exports.print = function(){
   args = __slice.call(arguments);
   return process.stdout.write(args.join(' '));
 };
-say = exports.say = function(){
+say = exports.say = out = exports.out = function(){
   var args;
   args = __slice.call(arguments);
   return process.stdout.write(args.join(' ') + '\n');
@@ -75,7 +76,7 @@ run = exports.run = function(cmd, args, options){
   }
   if (opts.errors) {
     proc.stderr.on('data', function(it){
-      return say(String(it));
+      return process.stderr.write(String(it) + '\n');
     });
   }
   if (opts.die) {
@@ -97,11 +98,17 @@ read = exports.read = exports.slurp = function(){
 write = exports.write = exports.spit = function(){
   return fs.writeFileSync.apply(this, arguments);
 };
-rm = exports.rm = remove = exports.remove = removeSync = exports.removeSync = function(){
-  var paths, f, _i, _len;
-  paths = __slice.call(arguments);
+rm = exports.rm = remove = exports.remove = removeSync = exports.removeSync = function(paths, ignoreErrors){
+  var f, _i, _len;
+  ignoreErrors == null && (ignoreErrors = false);
+  if (typeof paths === 'string') {
+    paths = [paths];
+  }
   for (_i = 0, _len = paths.length; _i < _len; ++_i) {
     f = paths[_i];
+    if (ignoreErrors && !exists(f)) {
+      continue;
+    }
     if (isDirectory(f)) {
       fs.rmdirSync(f);
     } else {
@@ -110,12 +117,20 @@ rm = exports.rm = remove = exports.remove = removeSync = exports.removeSync = fu
   }
   return paths;
 };
-removeAsync = exports.removeAsync = function(){
-  var paths, cb, f, _i, _len;
-  paths = 0 < (_i = arguments.length - 1) ? __slice.call(arguments, 0, _i) : (_i = 0, []), cb = arguments[_i];
+removeAsync = exports.removeAsync = function(paths, ignoreErrors, cb){
+  var f, _ref, _i, _len;
+  if (typeof paths === 'string') {
+    paths = [paths];
+  }
+  if (typeof ignoreErrors === 'function') {
+    _ref = [false, ignoreErrors], ignoreErrors = _ref[0], cb = _ref[1];
+  }
   try {
     for (_i = 0, _len = paths.length; _i < _len; ++_i) {
       f = paths[_i];
+      if (ignoreErrors && !exists(f)) {
+        continue;
+      }
       if (isDirectory(f)) {
         fs.rmdirSync(f);
       } else {
@@ -250,14 +265,6 @@ mkdirp = exports.mkdirp = mkdirpSync = exports.mkdirpSync = function(p, mode){
 coco = exports.coco = function(args, options){
   return run('coco', args, options);
 };
-getVersion = exports.getVersion = function(cb){
-  return exec('git rev-parse --short HEAD', function(err, stdout){
-    if (err) {
-      throw err;
-    }
-    return cb(stdout.trim());
-  });
-};
 minify = exports.minify = function(it){
   var parser, uglify, ast, _ref;
   _ref = require('uglify-js'), parser = _ref.parser, uglify = _ref.uglify;
@@ -341,8 +348,25 @@ bundle_css = exports.bundle_css = function(outpath, sources, options){
     srccolor: 'yellow'
   }, options));
 };
+getVersion = exports.getVersion = function(cb){
+  return exec('git rev-parse --short HEAD', function(err, stdout){
+    if (err) {
+      throw err;
+    }
+    return cb(stdout.trim());
+  });
+};
+writeVersionFile = exports.writeVersionFile = function(version_file){
+  version_file == null && (version_file = 'lib/version.js');
+  return getVersion(function(version){
+    return write(version_file, "module.exports = exports = '" + version + "';\n", 'utf8');
+  });
+};
 /* }}} */
-__import(global, exports);
+mainbase = path.basename(require.main.filename);
+if (_(['Cokefile', 'Cakefile', 'Jakefile']).contains(mainbase)) {
+  __import(global, exports);
+}
 function __import(obj, src){
   var own = {}.hasOwnProperty;
   for (var key in src) if (own.call(src, key)) obj[key] = src[key];

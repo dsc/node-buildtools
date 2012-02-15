@@ -1,0 +1,83 @@
+require './buildtools'
+
+if 'function' is not typeof task
+    throw new Error "'buildtools/tasks' can only be installed into Coke/Cake/Jake environment!"
+
+# TODO: wrap task so you can pass deps?
+coke_task = task
+
+
+
+
+# task \link 'Link package source to node_modules so the name resolves correctly' ->
+#     mkdirp 'node_modules'
+#     if not exists MODULE_LINK
+#         say "Creating #PROJECT_NAME symlink..."
+#         fs.symlinkSync "../lib", MODULE_LINK
+
+# task \server 'Start dev server' ->
+#     invoke \link
+#     invoke \update_version
+#     run 'lib/server/server.co'
+
+# task \build 'Build coco sources' ->
+#     invoke \update_version
+#     coco <[ -bjc package.co ]>
+
+# task \test 'Rebuild test files and run tests' ->
+#     invoke 'link'
+#     tests = glob.globSync 'test/*.co'
+#     tests.forEach (file) ->
+#         js = file.replace '.co', '.js'
+#         fs.unlinkSync js if exists js
+#         coco [ '-bc', file ]
+#     sh 'expresso'
+
+# task \clean 'Clean up environment and artifacts' ->
+#     remove [MODULE_LINK, 'var', 'tmp/dest'], true
+
+
+
+# task \bundle 'Build and minify JS & CSS bundles for production' ->
+#     invoke \bundle_js
+#     invoke \bundle_css
+# 
+# task \bundle_js 'Build and minify JS' ->
+#     outpath = "#VAR/lib/lib-bundle.js"
+#     outmin = outpath.replace '.js', '.min.js'
+#     
+#     bundle_js do
+#         outpath
+#         <[  es5-shim modernizr json2
+#             jquery jquery.history.min
+#             require
+#             underscore.mod underscore.string.mod
+#             backbone.mod
+#         ]>
+#         paths : "static/lib var/lib", minify:false
+#     
+#     say 'Compressing', outpath.white.bold, 'to', outmin.magenta.bold,  '...'
+#     write outmin, minify(read outpath), 'utf8'
+# 
+# task \bundle_css 'Build and minify CSS' ->
+#     bundle_css do
+#         "var/css/site-bundle.css"
+#         "reset gamebook tipsy"
+#         paths: "static/css var/css"
+# 
+
+
+
+
+task \version 'Determine git version' ->
+    version <- getVersion
+    say 'Version is', version.white.bold
+
+
+task \update_version 'Updates server/version.js' ->
+    version <- getVersion
+    print 'Writing', 'lib/version.js'.white.bold, 'with', version.white.bold, '... '
+    write 'lib/version.js', "module.exports = exports = '#{version}';\n", 'utf8'
+    say 'ok!'.green.bold
+
+

@@ -23,14 +23,17 @@ A noseful of utilities for Coke/Cake/Jake files.
 
 ### Third Party
 
-- underscore: `underscore`, `_`
+- underscore: `underscore`, `u`, `_`, `__`
+- underscore.string: `_.str`, `_.mixin _.str.exports()`
 - node-seq: `Seq`
 - eyes: `eyes`
     - `inspector`
     - `inspect`
 - colors: `colors`
 - cli-table: `Table`
-- 
+- glob: `glob`
+- commondir: `commondir`
+
 
 
 ### Helpers
@@ -38,7 +41,7 @@ A noseful of utilities for Coke/Cake/Jake files.
 #### Logging
 
 - `print(...args)` -- write to stdout without newline.
-- `say(...args)` -- write to stdout and append newline.
+- `say(...args)` = `out` -- write to stdout and append newline.
 
 
 #### Shell & Subprocess
@@ -52,22 +55,29 @@ A noseful of utilities for Coke/Cake/Jake files.
 
 - `minify`
 - `cssmin`
+- `bundle`
+- `bundle_js`
+- `bundle_css`
+- `getVersion`
+- `writeVersionFile`
 
 
 #### Paths & Files
 
-- glob
-- commondir
-- read = slurp
-- write = spit
-- dir
-- sourceFiles
+- read = slurp = fs.readFileSync
+- write = spit = fs.writeFileSync
+- remove = rm = removeSync
+- removeAsync
+- ls = dir = fs.readdirSync
 - expand
-- isDirectory
-- isFile
-- isDirectorySync
-- isFileSync
+- isFile = isFileSync
+- isFileAsync
+- isDirectory = isDirectorySync
+- isDirectoryAsync
 - mkdirp = mkdirpSync
 - mkdirpAsync
+- sourceFiles
+- glob
+- commondir
 
 

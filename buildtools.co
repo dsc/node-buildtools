@@ -9,8 +9,10 @@ exports.{dirname, basename, extname, resolve, relative, normalize, join:joinPath
 /* * * *  plumbing  * * * {{{ */
 
 _     = require 'underscore'
-_.mixin require 'underscore.string'
-exports.underscore = exports._ = _
+_.str = require 'underscore.string'
+_.mixin _.str.exports!
+exports.underscore = exports.u = \
+exports._ = exports.__ = _
 exports.Seq = require 'seq'
 
 
@@ -19,7 +21,8 @@ exports.Seq = require 'seq'
 /* * * *  logging helpers  * * * {{{ */
 
 print = exports.print = (...args) -> process.stdout.write args.join(' ')
-say   = exports.say   = (...args) -> process.stdout.write args.join(' ') + '\n'
+say   = exports.say   = \
+out   = exports.out   = (...args) -> process.stdout.write args.join(' ') + '\n'
 
 exports.eyes      = eyes = require 'eyes'
 exports.inspector = eyes.inspector()
@@ -33,8 +36,8 @@ exports.inspect   = (object, showHidden=false, depth=1, colors=true) ->
 
 exports.{spawn, exec} = {spawn, exec} = require 'child_process'
 
-exports.colors    = require 'colors'
-exports.Table     = require 'cli-table'
+exports.colors = require 'colors'
+exports.Table  = require 'cli-table'
 
 sh = exports.sh = (cmd, cb) ->
     say cmd
@@ -53,7 +56,7 @@ run = exports.run = (cmd, args=[], options={}) ->
     args = args.split(/\s+/g) if typeof args is 'string'
     proc = spawn cmd, args
     if opts.verbose  then proc.stdout.on 'data', -> say String(it)
-    if opts.errors   then proc.stderr.on 'data', -> say String(it)
+    if opts.errors   then proc.stderr.on 'data', -> process.stderr.write String(it)+'\n'
     if opts.die      then proc       .on 'exit', -> process.exit it if it
     proc
 
@@ -188,11 +191,7 @@ coco = exports.coco = (args, options) ->
     run 'coco', args, options
 
 
-getVersion = exports.getVersion = (cb) ->
-    err, stdout <- exec 'git rev-parse --short HEAD'
-    throw err if err
-    cb stdout.trim()
-
+### Bundling utilities
 
 minify = exports.minify = ->
     {parser, uglify} = require 'uglify-js'
@@ -244,7 +243,22 @@ bundle_css = exports.bundle_css = (outpath, sources, options={}) ->
     bundle outpath, sources, { ext:'.css', minifier:cssmin, srccolor:'yellow' } <<< options
 
 
+### Version utilities
+
+getVersion = exports.getVersion = (cb) ->
+    err, stdout <- exec 'git rev-parse --short HEAD'
+    throw err if err
+    cb stdout.trim()
+
+writeVersionFile = exports.writeVersionFile = (version_file='lib/version.js') ->
+    version <- getVersion
+    write version_file, "module.exports = exports = '#version';\n", 'utf8'
+
 
 /* }}} */
 
-global import exports
+
+mainbase = path.basename require.main.filename
+if _ <[ Cokefile Cakefile Jakefile ]> .contains mainbase
+    global import exports
+
