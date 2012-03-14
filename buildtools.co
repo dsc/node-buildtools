@@ -23,6 +23,7 @@ exports.Seq = require 'seq'
 print = exports.print = (...args) -> process.stdout.write args.join(' ')
 say   = exports.say   = \
 out   = exports.out   = (...args) -> process.stdout.write args.join(' ') + '\n'
+warn  = exports.warn  = (...args) -> process.stderr.write args.join(' ') + '\n'
 
 exports.eyes      = eyes = require 'eyes'
 exports.inspector = eyes.inspector()
@@ -39,25 +40,31 @@ exports.{spawn, exec} = {spawn, exec} = require 'child_process'
 exports.colors = require 'colors'
 exports.Table  = require 'cli-table'
 
-sh = exports.sh = (cmd, cb) ->
-    say cmd
-    if cb then exec cmd, cb
-    else
-        err, stdout, stderr <- exec cmd
-        say that if stderr
-        if err
-            say String(err).red
-            process.exit 1
-        say that if stdout
+sh = exports.sh = (cmd, options, cb) ->
+    if typeof options is 'function'
+        [cb, options] = [options, {}]
+    opts = { +verbose, +errors, +die } <<< options
+    if opts.verbose then say cmd
+    
+    err, stdout, stderr <- exec cmd
+    if opts.errors and stderr   then warn stderr
+    if err
+        if opts.die or opts.errors
+            warn String(err).red
+        if opts.die then process.exit 1
+    if opts.verbose and stdout  then say stdout
+    if cb then cb err, stdout, stderr
 
 run = exports.run = (cmd, args=[], options={}) ->
     opts = { +verbose, +errors, +die } <<< options
     if opts.verbose  then console.log cmd, args
     args = args.split(/\s+/g) if typeof args is 'string'
     proc = spawn cmd, args
-    if opts.verbose  then proc.stdout.on 'data', -> say String(it)
-    if opts.errors   then proc.stderr.on 'data', -> process.stderr.write String(it)+'\n'
-    if opts.die      then proc       .on 'exit', -> process.exit it if it
+    if opts.verbose  then proc.stdout.on 'data', -> process.stdout.write String(it)
+    if opts.errors   then proc.stderr.on 'data', -> process.stderr.write String(it)
+    if opts.die      then proc       .on 'exit', (code) ->
+        # process.stdout.end(); process.stderr.end()
+        process.exit code if code
     proc
 
 
@@ -72,6 +79,13 @@ dir    = exports.dir    = fs.readdirSync
 read   = exports.read   = exports.slurp = -> '' + fs.readFileSync ...
 write  = exports.write  = exports.spit  = -> fs.writeFileSync ...
 
+
+removeItSync = (f) ->
+    if isDirectory f
+        fs.rmdirSync f
+    else
+        fs.unlinkSync f
+
 rm     = exports.rm     = \
 remove = exports.remove = \
 removeSync = exports.removeSync = (paths, ignoreErrors=false) ->
@@ -79,10 +93,13 @@ removeSync = exports.removeSync = (paths, ignoreErrors=false) ->
     for f of paths
         if ignoreErrors and not exists f
             continue
-        if isDirectory f
-            fs.rmdirSync f
-        else
-            fs.unlinkSync f
+        try
+            removeItSync f
+        catch err
+            if ignoreErrors
+                console.error err
+            else
+                throw err
     paths
 
 removeAsync = exports.removeAsync = (paths, ignoreErrors, cb) ->
@@ -258,7 +275,7 @@ writeVersionFile = exports.writeVersionFile = (version_file='lib/version.js') ->
 /* }}} */
 
 
-mainbase = path.basename require.main.filename
-if _ <[ Cokefile Cakefile Jakefile ]> .contains mainbase
+mainfile = path.basename require.main?.filename
+if _ <[ Cokefile Cakefile Jakefile ]> .contains mainfile
     global import exports
 

@@ -1,4 +1,4 @@
-var fs, path, print, out, say, eyes, spawn, exec, sh, run, dir, ls, read, write, removeSync, remove, rm, removeAsync, sourceFiles, expand, isDirectoryAsync, isDirectorySync, isDirectory, isFileAsync, isFileSync, isFile, mkdirpAsync, mkdirpSync, mkdirp, coco, minify, cssmin, bundle, bundle_js, bundle_css, getVersion, writeVersionFile, mainbase, _, _ref, __slice = [].slice;
+var fs, path, print, out, say, warn, eyes, spawn, exec, sh, run, dir, ls, read, write, removeItSync, removeSync, remove, rm, removeAsync, sourceFiles, expand, isDirectoryAsync, isDirectorySync, isDirectory, isFileAsync, isFileSync, isFile, mkdirpAsync, mkdirpSync, mkdirp, coco, minify, cssmin, bundle, bundle_js, bundle_css, getVersion, writeVersionFile, mainfile, _, _ref, __slice = [].slice;
 exports.fs = fs = require('fs');
 exports.path = path = require('path');
 exports.dirname = path.dirname, exports.basename = path.basename, exports.extname = path.extname, exports.resolve = path.resolve, exports.relative = path.relative, exports.normalize = path.normalize, exports.joinPath = path.join, exports.exists = path.existsSync;
@@ -20,6 +20,11 @@ say = exports.say = out = exports.out = function(){
   args = __slice.call(arguments);
   return process.stdout.write(args.join(' ') + '\n');
 };
+warn = exports.warn = function(){
+  var args;
+  args = __slice.call(arguments);
+  return process.stderr.write(args.join(' ') + '\n');
+};
 exports.eyes = eyes = require('eyes');
 exports.inspector = eyes.inspector();
 exports.inspect = function(object, showHidden, depth, colors){
@@ -33,25 +38,38 @@ exports.inspect = function(object, showHidden, depth, colors){
 _ref = (_ref = require('child_process'), spawn = _ref.spawn, exec = _ref.exec, _ref), exports.spawn = _ref.spawn, exports.exec = _ref.exec;
 exports.colors = require('colors');
 exports.Table = require('cli-table');
-sh = exports.sh = function(cmd, cb){
-  say(cmd);
-  if (cb) {
-    return exec(cmd, cb);
-  } else {
-    return exec(cmd, function(err, stdout, stderr){
-      var that;
-      if (that = stderr) {
-        say(that);
+sh = exports.sh = function(cmd, options, cb){
+  var opts, _ref;
+  if (typeof options === 'function') {
+    _ref = [options, {}], cb = _ref[0], options = _ref[1];
+  }
+  opts = __import({
+    verbose: true,
+    errors: true,
+    die: true
+  }, options);
+  if (opts.verbose) {
+    say(cmd);
+  }
+  return exec(cmd, function(err, stdout, stderr){
+    if (opts.errors && stderr) {
+      warn(stderr);
+    }
+    if (err) {
+      if (opts.die || opts.errors) {
+        warn(String(err).red);
       }
-      if (err) {
-        say(String(err).red);
+      if (opts.die) {
         process.exit(1);
       }
-      if (that = stdout) {
-        return say(that);
-      }
-    });
-  }
+    }
+    if (opts.verbose && stdout) {
+      say(stdout);
+    }
+    if (cb) {
+      return cb(err, stdout, stderr);
+    }
+  });
 };
 run = exports.run = function(cmd, args, options){
   var opts, proc;
@@ -71,18 +89,18 @@ run = exports.run = function(cmd, args, options){
   proc = spawn(cmd, args);
   if (opts.verbose) {
     proc.stdout.on('data', function(it){
-      return say(String(it));
+      return process.stdout.write(String(it));
     });
   }
   if (opts.errors) {
     proc.stderr.on('data', function(it){
-      return process.stderr.write(String(it) + '\n');
+      return process.stderr.write(String(it));
     });
   }
   if (opts.die) {
-    proc.on('exit', function(it){
-      if (it) {
-        return process.exit(it);
+    proc.on('exit', function(code){
+      if (code) {
+        return process.exit(code);
       }
     });
   }
@@ -98,6 +116,13 @@ read = exports.read = exports.slurp = function(){
 write = exports.write = exports.spit = function(){
   return fs.writeFileSync.apply(this, arguments);
 };
+removeItSync = function(f){
+  if (isDirectory(f)) {
+    return fs.rmdirSync(f);
+  } else {
+    return fs.unlinkSync(f);
+  }
+};
 rm = exports.rm = remove = exports.remove = removeSync = exports.removeSync = function(paths, ignoreErrors){
   var f, _i, _len;
   ignoreErrors == null && (ignoreErrors = false);
@@ -109,10 +134,14 @@ rm = exports.rm = remove = exports.remove = removeSync = exports.removeSync = fu
     if (ignoreErrors && !exists(f)) {
       continue;
     }
-    if (isDirectory(f)) {
-      fs.rmdirSync(f);
-    } else {
-      fs.unlinkSync(f);
+    try {
+      removeItSync(f);
+    } catch (err) {
+      if (ignoreErrors) {
+        console.error(err);
+      } else {
+        throw err;
+      }
     }
   }
   return paths;
@@ -363,8 +392,8 @@ writeVersionFile = exports.writeVersionFile = function(version_file){
   });
 };
 /* }}} */
-mainbase = path.basename(require.main.filename);
-if (_(['Cokefile', 'Cakefile', 'Jakefile']).contains(mainbase)) {
+mainfile = path.basename((_ref = require.main) != null ? _ref.filename : void 8);
+if (_(['Cokefile', 'Cakefile', 'Jakefile']).contains(mainfile)) {
   __import(global, exports);
 }
 function __import(obj, src){
