@@ -44,20 +44,20 @@ sh = exports.sh = (cmd, options, cb) ->
     if typeof options is 'function'
         [cb, options] = [options, {}]
     opts = { +verbose, +errors, +die } <<< options
-    if opts.verbose then say cmd
+    if opts.verbose then say (if _.isArray(cmd) then cmd.join ' ' else cmd)
     
     err, stdout, stderr <- exec cmd
     if opts.errors and stderr   then warn stderr
     if err
-        if opts.die or opts.errors
-            warn String(err).red
+        # if opts.die or opts.errors
+        #     warn String(err).red
         if opts.die then process.exit 1
     if opts.verbose and stdout  then say stdout
     if cb then cb err, stdout, stderr
 
 run = exports.run = (cmd, args=[], options={}) ->
     opts = { +verbose, +errors, +die } <<< options
-    if opts.verbose  then console.log cmd, args
+    if opts.verbose  then say cmd, (if _.isArray(args) then args.join ' ' else args)
     args = args.split(/\s+/g) if typeof args is 'string'
     proc = spawn cmd, args
     if opts.verbose  then proc.stdout.on 'data', -> process.stdout.write String(it)
@@ -80,44 +80,11 @@ read   = exports.read   = exports.slurp = -> '' + fs.readFileSync ...
 write  = exports.write  = exports.spit  = -> fs.writeFileSync ...
 
 
-removeItSync = (f) ->
-    if isDirectory f
-        fs.rmdirSync f
-    else
-        fs.unlinkSync f
+removeAsync = exports.removeAsync = require 'remove'
 
 rm     = exports.rm     = \
 remove = exports.remove = \
-removeSync = exports.removeSync = (paths, ignoreErrors=false) ->
-    paths = [paths] if typeof paths is 'string'
-    for f of paths
-        if ignoreErrors and not exists f
-            continue
-        try
-            removeItSync f
-        catch err
-            if ignoreErrors
-                console.error err
-            else
-                throw err
-    paths
-
-removeAsync = exports.removeAsync = (paths, ignoreErrors, cb) ->
-    paths = [paths] if typeof paths is 'string'
-    if typeof ignoreErrors is 'function'
-        [ignoreErrors, cb] = [false, ignoreErrors]
-    
-    try
-        for f of paths
-            if ignoreErrors and not exists f
-                continue
-            if isDirectory f
-                fs.rmdirSync f
-            else
-                fs.unlinkSync f
-    catch err
-        return cb err
-    cb null
+removeSync = exports.removeSync = removeAsync.removeSync
 
 
 sourceFiles = exports.sourceFiles = (srcPath, pattern=/\.co$/) ->
