@@ -2,7 +2,8 @@
 
 exports.fs   = fs   = require 'fs'
 exports.path = path = require 'path'
-exports.{dirname, basename, extname, resolve, relative, normalize, join:joinPath, existsSync:exists} = path
+exports.{dirname, basename, extname, resolve, relative, normalize, join:joinPath} = path
+exports.exists = exists = fs.existsSync ? path.existsSync
 
 
 
@@ -27,7 +28,7 @@ warn  = exports.warn  = (...args) -> process.stderr.write args.join(' ') + '\n'
 
 exports.eyes      = eyes = require 'eyes'
 exports.inspector = eyes.inspector()
-exports.inspect   = (object, showHidden=false, depth=1, colors=true) ->
+exports._inspect   = (object, showHidden=false, depth=1, colors=true) ->
     eyes.inspect ...
 
 
@@ -171,8 +172,13 @@ mkdirpSync = exports.mkdirpSync = (p, mode=8r0755) ->
 /* }}} */
 /* * * *  development helpers  * * * {{{ */
 
-coco = exports.coco = (args, options) ->
-    run 'coco', args, options
+coco = exports.coco = (args, options, cb) ->
+    if cb
+        cmd = args.join ' ' if _.isArray args
+        sh "coco #cmd", options, cb
+    else
+        args = args.split /\s+/ if typeof args is 'string'
+        run 'coco', args, options
 
 
 ### Bundling utilities
@@ -201,7 +207,7 @@ bundle = exports.bundle = (outpath, sources, options={}) ->
         name += ext unless _.endsWith name, ext
         file = _ paths.map (-> joinPath it, name) .find exists
         unless file
-            say 'Cannot locate', name.red.bold, 'in paths', _.pluck(paths).join(' '),+'!'
+            say 'Cannot locate', name.red.bold, 'in paths', _.pluck(paths).join(' ') + '!'
             throw new Error("Cannot locate file #name!")
         try
             code += "/** BEGIN:  #file **/\n\n" if opts.file_bounds
@@ -216,7 +222,7 @@ bundle = exports.bundle = (outpath, sources, options={}) ->
     code = opts.minifier code if opts.minify and typeof opts.minifier is 'function'
     write outpath, code, 'utf8'
     say '...wrote', outpath.magenta.bold, 'containing files:'
-    say files.map(-> '\t' + it[opts.srccolor].bold).join('\n')
+    say files.map( -> '\t' + it[opts.srccolor].bold ).join '\n'
 
 
 bundle_js = exports.bundle_js = (outpath, sources, options={}) ->
@@ -243,6 +249,6 @@ writeVersionFile = exports.writeVersionFile = (version_file='lib/version.js') ->
 
 
 mainfile = path.basename require.main?.filename
-if _ <[ Cokefile Cakefile Jakefile ]> .contains mainfile
+if _ <[ Cokefile Cakefile Jakefile repl ]> .contains mainfile
     global import exports
 
