@@ -1,3 +1,2 @@
-var coco      = require('coco')
-,   buildtools = module.exports = exports = require('./buildtools')
-;
+// var coco       = require('coco');
+var buildtools = module.exports = exports = require('./buildtools');

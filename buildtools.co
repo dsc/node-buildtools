@@ -6,7 +6,16 @@ exports.{dirname, basename, extname, resolve, relative, normalize, join:joinPath
 exports.exists = exists = fs.existsSync ? path.existsSync
 
 
+/* * * *  task helpers  * * * {{{ */
 
+fail = (msg, code=1) ->
+    code = 1 unless code > 0
+    console.error msg
+    process.exit code
+
+
+
+/* }}} */
 /* * * *  plumbing  * * * {{{ */
 
 _     = require 'underscore'
@@ -211,7 +220,7 @@ bundle = exports.bundle = (outpath, sources, options={}) ->
             throw new Error("Cannot locate file #name!")
         try
             code += "/** BEGIN:  #file **/\n\n" if opts.file_bounds
-            code += read(file) + '\n'
+            code += ';\n' + read(file) + '\n'
             code += "\n/** END:  #file **/\n\n" if opts.file_bounds
         catch err
             say 'Error reading', file.red.bold+'!'
@@ -237,12 +246,16 @@ bundle_css = exports.bundle_css = (outpath, sources, options={}) ->
 
 getVersion = exports.getVersion = (cb) ->
     err, stdout <- exec 'git rev-parse --short HEAD'
-    throw err if err
-    cb stdout.trim()
+    # throw err if err
+    cb err, stdout.trim()
 
-writeVersionFile = exports.writeVersionFile = (version_file='lib/version.js') ->
-    version <- getVersion
-    write version_file, "module.exports = exports = '#version';\n", 'utf8'
+writeVersionFile = exports.writeVersionFile = (version_file='lib/version.js', cb) ->
+    err, version <- getVersion
+    return cb?(err) if err
+    try
+        write version_file, "module.exports = exports = '#version';\n", 'utf8'
+    catch err
+    cb?(err, version)
 
 
 /* }}} */
